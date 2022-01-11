@@ -25,17 +25,19 @@ import (
 
 type DnsServer struct {
 	chainViews      map[string]*ChainView
-	listenAddr      string
+	listenAddrUDP   string
+	listenAddrTCP   string
 	rootDomain      string
 	authoritativeIP net.IP
 }
 
-func NewDnsServer(chainViews map[string]*ChainView, listenAddr, rootDomain string,
+func NewDnsServer(chainViews map[string]*ChainView, listenAddrUDP, listenAddrTCP, rootDomain string,
 	authoritativeIP net.IP) *DnsServer {
 
 	return &DnsServer{
 		chainViews:      chainViews,
-		listenAddr:      listenAddr,
+		listenAddrUDP:   listenAddrUDP,
+		listenAddrTCP:   listenAddrTCP,
 		rootDomain:      rootDomain,
 		authoritativeIP: authoritativeIP,
 	}
@@ -87,6 +89,7 @@ func addAAAAResponse(n Node, name string, responses *[]dns.RR) {
 			Hdr:  header,
 			AAAA: a.IP.To16(),
 		}
+		log.Debugf("Adding AAAA response record: %s", name)
 		*responses = append(*responses, rr)
 	}
 }
@@ -96,8 +99,8 @@ func (ds *DnsServer) locateChainView(subdomain string) *ChainView {
 
 	subdomain = strings.TrimSpace(subdomain)
 	segments := strings.SplitAfter(subdomain, ".")
-	//	log.Debug("seg: ", segments)
-	//log.Debug("seg: ", len(segments))
+	log.Debug("seg: ", segments)
+	log.Debug("seg: ", len(segments))
 
 	switch {
 
@@ -125,9 +128,10 @@ func (ds *DnsServer) locateChainView(subdomain string) *ChainView {
 func (ds *DnsServer) handleAAAAQuery(request *dns.Msg, response *dns.Msg,
 	subDomain string) {
 
+	log.Debugf("Handling AAAA query")
 	chainView, ok := ds.chainViews[subDomain]
 	if !ok {
-		//log.Errorf("no chain view found for %v", subDomain)
+		log.Errorf("no chain view found for %v", subDomain)
 		return
 	}
 
@@ -140,9 +144,10 @@ func (ds *DnsServer) handleAAAAQuery(request *dns.Msg, response *dns.Msg,
 func (ds *DnsServer) handleAQuery(request *dns.Msg, response *dns.Msg,
 	subDomain string) {
 
+	log.Debugf("Handling A query")
 	chainView, ok := ds.chainViews[subDomain]
 	if !ok {
-		//log.Errorf("no chain view found for %v", subDomain)
+		log.Errorf("no chain view found for %v", subDomain)
 		return
 	}
 
@@ -161,7 +166,8 @@ func (ds *DnsServer) handleAQuery(request *dns.Msg, response *dns.Msg,
 func (ds *DnsServer) handleSRVQuery(request *dns.Msg, response *dns.Msg,
 	subDomain string) {
 
-	//log.Debugf("taget subdomain: ", subDomain)
+	log.Debugf("Handling SRV query")
+	log.Debugf("taget subdomain: %s", subDomain)
 
 	var (
 		chainView *ChainView
@@ -332,7 +338,7 @@ func (ds *DnsServer) handleLightningDns(w dns.ResponseWriter, r *dns.Msg) {
 	req, err := ds.parseRequest(r.Question[0].Name, r.Question[0].Qtype)
 
 	if err != nil {
-		//log.Errorf("error parsing request: %v", err)
+		log.Errorf("error parsing request: %v", err)
 		return
 	}
 
@@ -349,6 +355,7 @@ func (ds *DnsServer) handleLightningDns(w dns.ResponseWriter, r *dns.Msg) {
 	// IP address of the authoritative DNS server for fallback TCP
 	// purposes.
 	case strings.HasPrefix(req.subdomain, "soa"):
+		log.Debugf("Handling SOA request")
 		soaResp := &dns.A{
 			Hdr: dns.RR_Header{
 				Rrtype: dns.TypeA,
@@ -407,26 +414,30 @@ func (ds *DnsServer) handleLightningDns(w dns.ResponseWriter, r *dns.Msg) {
 func (ds *DnsServer) Serve() {
 	dns.HandleFunc(ds.rootDomain, ds.handleLightningDns)
 
-	// We'll launch goroutines to listen on both udp and tcp as some
-	// clients may fallback to opening a direct connection to the
-	// authoritative server in the case that their resolves have issues
-	// with our large-ish responses over udp.
+	// We'll launch a goroutine to listen on UDP.
 	go func() {
-		udpServer := &dns.Server{Addr: ds.listenAddr, Net: "udp"}
+		udpServer := &dns.Server{Addr: ds.listenAddrUDP, Net: "udp"}
 		if err := udpServer.ListenAndServe(); err != nil {
 			panic(fmt.Sprintf("failed to setup the udp "+
 				"server: %s\n", err.Error()))
 		}
 	}()
+
+	// TCP is handled separately as some clients may fallback to opening a
+	// direct connection to the authoritative server in the case that their
+	// resolves have issues with our large-ish responses over udp.
+	// To make this paletable for Kubernetes we need to be able to expose
+	// two different ports for UDP and TCP to support both protocls behind
+	// a load balancer.
 	go func() {
-		tcpServer := &dns.Server{Addr: ds.listenAddr, Net: "tcp"}
+		tcpServer := &dns.Server{Addr: ds.listenAddrTCP, Net: "tcp"}
 		if err := tcpServer.ListenAndServe(); err != nil {
 			panic(fmt.Sprintf("failed to setup the tcp "+
 				"server: %s\n", err.Error()))
 		}
 	}()
-
 	quitChan := make(chan os.Signal)
 	signal.Notify(quitChan, syscall.SIGINT, syscall.SIGTERM)
 	<-quitChan
 }
+
