@@ -99,8 +99,6 @@ func (ds *DnsServer) locateChainView(subdomain string) *ChainView {
 
 	subdomain = strings.TrimSpace(subdomain)
 	segments := strings.SplitAfter(subdomain, ".")
-	log.Debug("seg: ", segments)
-	log.Debug("seg: ", len(segments))
 
 	switch {
 
@@ -130,10 +128,6 @@ func (ds *DnsServer) handleAAAAQuery(request *dns.Msg, response *dns.Msg,
 
 	log.Debugf("Handling AAAA query")
 	chainView, ok := ds.chainViews[subDomain]
-	if !ok {
-		log.Errorf("no chain view found for %v", subDomain)
-		return
-	}
 
 	nodes := chainView.NetView.RandomSample(3, 25)
 	for _, n := range nodes {

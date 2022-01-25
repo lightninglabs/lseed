@@ -280,7 +280,6 @@ func (nv *NetworkView) reachabilityPruner() {
 					// log.Infof("sema returned")
 				}()
 
-				// log.Infof("got sema")
 				extractReachableAddrs(newNode, false)
 			}()
 
