@@ -108,7 +108,8 @@ func (nv *NetworkView) RandomSample(query NodeType, count int) []Node {
 		}
 	}
 
-	fmt.Println("Num reachable nodes: %v", len(nv.reachableNodes))
+	// fmt.Println("Num reachable nodes: %v", len(nv.reachableNodes))
+	log.Infof("Num reachable nodes: %v", len(nv.reachableNodes))
 
 	return result
 }
@@ -271,15 +272,14 @@ func (nv *NetworkView) reachabilityPruner() {
 		// addresses are reachable.
 		case newNode := <-nv.freshNodes:
 			go func() {
-				log.Infof("waiting to grab sema")
+				// log.Infof("waiting to grab sema")
 				<-searchSema
 
 				defer func() {
 					searchSema <- struct{}{}
-					log.Infof("sema returned")
+					// log.Infof("sema returned")
 				}()
 
-				log.Infof("got sema")
 				extractReachableAddrs(newNode, false)
 			}()
 

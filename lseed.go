@@ -26,7 +26,8 @@ import (
 )
 
 var (
-	listenAddr = flag.String("listen", "0.0.0.0:53", "Listen address for incoming requests.")
+	listenAddrUDP = flag.String("listenUDP", "0.0.0.0:53", "UDP listen address for incoming requests.")
+	listenAddrTCP = flag.String("listenTCP", "0.0.0.0:53", "TCP listen address for incoming requests.")
 
 	bitcoinNodeHost  = flag.String("btc-lnd-node", "", "The host:port of the backing btc lnd node")
 	litecoinNodeHost = flag.String("ltc-lnd-node", "", "The host:port of the backing ltc lnd node")
@@ -143,6 +144,8 @@ func poller(lnd lnrpc.LightningClient, nview *seed.NetworkView) {
 
 			if _, err := nview.AddNode(node); err != nil {
 				log.Debugf("Unable to add node: %v", err)
+			} else {
+				log.Debugf("Adding node: %v", node.Addresses)
 			}
 		}
 	}
@@ -160,8 +163,10 @@ func configure() {
 	flag.Parse()
 	if *debug {
 		log.SetLevel(log.DebugLevel)
+		log.Infof("Logging on level Debug")
 	} else {
 		log.SetLevel(log.InfoLevel)
+		log.Infof("Logging on level Info")
 	}
 }
 
@@ -245,7 +250,7 @@ func main() {
 
 	rootIP := net.ParseIP(*authoritativeIP)
 	dnsServer := seed.NewDnsServer(
-		netViewMap, *listenAddr, *rootDomain, rootIP,
+		netViewMap, *listenAddrUDP, *listenAddrTCP, *rootDomain, rootIP,
 	)
 
 	dnsServer.Serve()
