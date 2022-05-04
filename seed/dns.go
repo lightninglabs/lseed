@@ -127,7 +127,7 @@ func (ds *DnsServer) handleAAAAQuery(request *dns.Msg, response *dns.Msg,
 	subDomain string) {
 
 	log.Debugf("Handling AAAA query")
-	chainView, ok := ds.chainViews[subDomain]
+	chainView := ds.chainViews[subDomain]
 
 	nodes := chainView.NetView.RandomSample(3, 25)
 	for _, n := range nodes {
@@ -368,10 +368,8 @@ func (ds *DnsServer) handleLightningDns(w dns.ResponseWriter, r *dns.Msg) {
 		switch req.qtype {
 		case dns.TypeAAAA:
 			ds.handleAAAAQuery(r, m, req.subdomain)
-			break
 		case dns.TypeA:
 			ds.handleAQuery(r, m, req.subdomain)
-			break
 		case dns.TypeSRV:
 			ds.handleSRVQuery(r, m, req.subdomain)
 		}
@@ -434,4 +432,3 @@ func (ds *DnsServer) Serve() {
 	signal.Notify(quitChan, syscall.SIGINT, syscall.SIGTERM)
 	<-quitChan
 }
-
