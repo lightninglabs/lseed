@@ -113,7 +113,7 @@ func initLightningClient(nodeHost, tlsCertPath, macPath string) (lnrpc.Lightning
 
 	conn, err := grpc.Dial(nodeHost, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("unable to dial to lnd's gRPC server: ",
+		return nil, fmt.Errorf("unable to dial to lnd's gRPC server: %v",
 			err)
 	}
 
