@@ -128,6 +128,10 @@ func (ds *DnsServer) handleAAAAQuery(request *dns.Msg, response *dns.Msg,
 
 	log.Debugf("Handling AAAA query")
 	chainView, ok := ds.chainViews[subDomain]
+	if !ok {
+		log.Errorf("no chain view found for %v", subDomain)
+		return
+	}
 
 	nodes := chainView.NetView.RandomSample(3, 25)
 	for _, n := range nodes {
@@ -434,4 +438,3 @@ func (ds *DnsServer) Serve() {
 	signal.Notify(quitChan, syscall.SIGINT, syscall.SIGTERM)
 	<-quitChan
 }
-
