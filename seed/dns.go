@@ -17,10 +17,10 @@ import (
 	"strings"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/btcsuite/btcd/btcec"
-	"github.com/btcsuite/btcutil/bech32"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcutil/bech32"
 	"github.com/miekg/dns"
+	log "github.com/sirupsen/logrus"
 )
 
 type DnsServer struct {
@@ -315,7 +315,7 @@ func (ds *DnsServer) parseRequest(name string, qtype uint16) (*DnsRequest, error
 				return nil, fmt.Errorf("unable to convert bits: %x", bin5)
 			}
 
-			p, err := btcec.ParsePubKey(bin, btcec.S256())
+			p, err := btcec.ParsePubKey(bin)
 			if err != nil {
 				return nil, fmt.Errorf("not a valid pubkey: %x", bin)
 			}
