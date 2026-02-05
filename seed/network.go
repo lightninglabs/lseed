@@ -159,9 +159,8 @@ func (nv *NetworkView) AddNode(node *lnrpc.LightningNode) (*Node, error) {
 	nv.allNodes[n.Id] = *n
 	nv.Unlock()
 
-	go func() {
-		nv.freshNodes <- *n
-	}()
+	// Blocking enqueue applies backpressure instead of spawning goroutines.
+	nv.freshNodes <- *n
 
 	return n, nil
 }
@@ -260,29 +259,17 @@ func (nv *NetworkView) reachabilityPruner() {
 		nv.Unlock()
 	}
 
+	// Fixed-size worker pool to bound concurrent reachability checks.
 	numFds := 100
-	searchSema := make(chan struct{}, 100)
 	for i := 0; i < numFds; i++ {
-		searchSema <- struct{}{}
+		go func() {
+			for newNode := range nv.freshNodes {
+				extractReachableAddrs(newNode, false)
+			}
+		}()
 	}
 	for {
 		select {
-		// A new node has just been discovered, if we haven't checked
-		// this node recently, then we'll attempt to see which of its
-		// addresses are reachable.
-		case newNode := <-nv.freshNodes:
-			go func() {
-				// log.Infof("waiting to grab sema")
-				<-searchSema
-
-				defer func() {
-					searchSema <- struct{}{}
-					// log.Infof("sema returned")
-				}()
-
-				extractReachableAddrs(newNode, false)
-			}()
-
 		// The prune timer has ticked, so we'll do two things: try to
 		// move nodes from allNodes to reachableNodes, and also see if
 		// there are any nodes marked reachable which no longer are.
