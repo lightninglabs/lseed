@@ -18,11 +18,11 @@ import (
 
 	macaroon "gopkg.in/macaroon.v2"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/btcsuite/btcutil"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/roasbeef/lseed/seed"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -105,10 +105,12 @@ func initLightningClient(nodeHost, tlsCertPath, macPath string) (lnrpc.Lightning
 	}
 
 	// Now we append the macaroon credentials to the dial options.
-	opts = append(
-		opts,
-		grpc.WithPerRPCCredentials(macaroons.NewMacaroonCredential(mac)),
-	)
+	cred, err := macaroons.NewMacaroonCredential(mac)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create macaroon credential: "+
+			"%v", err)
+	}
+	opts = append(opts, grpc.WithPerRPCCredentials(cred))
 	opts = append(opts, grpc.WithDefaultCallOptions(maxMsgRecvSize))
 
 	conn, err := grpc.Dial(nodeHost, opts...)
