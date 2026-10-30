@@ -2,6 +2,8 @@ module github.com/roasbeef/lseed
 
 go 1.24.9
 
+godebug multipathtcp=0
+
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.6
 	github.com/btcsuite/btcd/btcutil v1.1.5
